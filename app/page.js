@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Header from "../app/dashboard/_components/Header";
+import Header from "./dashboard/_components/Header";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -13,8 +13,9 @@ export default function Home() {
             Welcome to <span className="text-blue-600">CareerPilot-AI</span>
           </h1>
           <p className="text-gray-600 text-lg">
-            Ace your interviews with smart mock interview preparation powered by AI.
-            Practice confidently, get instant feedback, and sharpen your skills — all in one place.
+            Ace your interviews with smart mock interview preparation powered by
+            AI. Practice confidently, get instant feedback, and sharpen your
+            skills — all in one place.
           </p>
           <Link href="/dashboard">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg transition-all duration-200 rounded-full shadow-md">
