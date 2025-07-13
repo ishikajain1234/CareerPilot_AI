@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { ai } from "../generate-course-layout/route";
 import axios from "axios";
+import { GoogleGenAI } from "@google/genai"; // ✅ Import here
 import { coursesTable } from "@/utils/schema";
 import { eq } from "drizzle-orm";
 import { db } from "@/utils/db";
@@ -26,17 +26,20 @@ export async function POST(req) {
       throw new Error("Invalid or missing chapters in courseJson");
     }
 
+    // ✅ Define ai instance here instead of importing it
+    const ai = new GoogleGenAI({
+      apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+    });
+
     const promises = courseJson.chapters.map(async (chapter) => {
       try {
         const config = { responseMimeType: 'text/plain' };
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-1.5-flash'; // or 'gemini-2.0' if needed
 
         const contents = [
           {
             role: 'user',
-            parts: [
-              { text: PROMPT + JSON.stringify(chapter) },
-            ],
+            parts: [{ text: PROMPT + JSON.stringify(chapter) }],
           },
         ];
 
@@ -50,7 +53,7 @@ export async function POST(req) {
 
         if (!RawResp) {
           console.error("Gemini returned empty response for:", chapter);
-          return null; // return null so Promise.all will have a placeholder
+          return null;
         }
 
         const RawJson = RawResp.replace(/```json|```/g, '').trim();
