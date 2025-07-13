@@ -63,9 +63,6 @@ const generateImage = async (imagePrompt) => {
 export async function POST(req) {
   try {
     const user = await currentUser();
-    const { has } = await auth();
-    const hasPremiumAccess = has({ plan: 'starter' });
-
     const { courseId, ...formData } = await req.json();
 
     // Validate input
@@ -80,21 +77,6 @@ export async function POST(req) {
         { error: 'Missing required fields.' },
         { status: 400 }
       );
-    }
-
-    // Subscription limit check
-    if (!hasPremiumAccess) {
-      const existingCourses = await db
-        .select()
-        .from(coursesTable)
-        .where(eq(coursesTable.userEmail, user?.primaryEmailAddress.emailAddress));
-
-      if (existingCourses.length >= 1) {
-        return NextResponse.json(
-          { error: 'Limit reached. Please subscribe.', redirect: true },
-          { status: 403 }
-        );
-      }
     }
 
     // Gemini AI request
@@ -152,25 +134,4 @@ export async function POST(req) {
       { status: 500 }
     );
   }
-}
-
-
-const  GenerateImage=async(imagePrompt)=>{
-  const BASE_URL='https://aigurulab.tech';
-const result = await axios.post(BASE_URL+'/api/generate-image',
-        {
-            width: 1024,
-            height: 1024,
-            input:imagePrompt,
-            model: 'flux',//'flux'
-            aspectRatio:"16:9"//Applicable to Flux model only
-        },
-        {
-            headers: {
-                'x-api-key': process?.env?.AI_GURU_LAB_API, // Your API Key
-                'Content-Type': 'application/json', // Content Type
-            },
-        })
-console.log(result.data.image) //Output Result: Base 64 Image
-  return result.data.image;
 }

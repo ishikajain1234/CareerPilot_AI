@@ -22,6 +22,8 @@ import { Loader2Icon, Sparkle } from "lucide-react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
+import { toast  } from 'sonner';
+
 
 const AddNewCourseDialog = ({ children }) => {
   const [loading ,setLoading]=useState(false);
