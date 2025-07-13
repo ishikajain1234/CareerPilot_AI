@@ -44,26 +44,33 @@ const AddNewCourseDialog = ({ children }) => {
     console.log(formData)
   }
 
-  const onGenerate=async()=>{
-    console.log(formData);
-    const courseId=uuidv4();
-    try{
-       setLoading(true);
+  const onGenerate = async () => {
+  console.log(formData);
+  const courseId = uuidv4();
 
-    const result=await axios.post('/api/generate-course-layout',{
+  try {
+    setLoading(true);
+    const result = await axios.post('/api/generate-course-layout', {
       ...formData,
-      courseId:courseId
+      courseId: courseId,
     });
+
+    if (result.data.redirect) {
+      toast.warning('Limit reached. Please subscribe.');
+      router.push('/workspace/billing');
+      return;
+    }
+
     console.log(result.data);
-    setLoading(false); 
-    router.push('/workspace/edit-course/'+result.data?.courseId);
-    }
-    catch(e){
-     console.error("Error generating course layout:", e);
-     setLoading(false);
-    }
-   
+    router.push('/workspace/edit-course/' + result.data?.courseId);
+  } catch (e) {
+    console.error('Error generating course layout:', e);
+    toast.error('Something went wrong while generating the course.');
+  } finally {
+    setLoading(false);
   }
+};
+
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>

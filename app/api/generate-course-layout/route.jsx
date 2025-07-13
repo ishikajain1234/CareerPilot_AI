@@ -37,81 +37,114 @@ Output should be in this JSON format:
 
 User Input:
 `;
-export const ai =new GoogleGenAI({
-  apiKey:process.env.GEMINI_API_KEY,
-});
+
+const generateImage = async (imagePrompt) => {
+  const BASE_URL = 'https://aigurulab.tech';
+  const response = await axios.post(
+    `${BASE_URL}/api/generate-image`,
+    {
+      width: 1024,
+      height: 1024,
+      input: imagePrompt,
+      model: 'flux',
+      aspectRatio: '16:9',
+    },
+    {
+      headers: {
+        'x-api-key': process.env.AI_GURU_LAB_API,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  return response.data.image;
+};
 
 export async function POST(req) {
   try {
     const user = await currentUser();
-     const {has}=await auth();
-     const hasPreniumAccess=has({plan:'starter'})
-    const {courseId,...formData} = await req.json();
+    const { has } = await auth();
+    const hasPremiumAccess = has({ plan: 'starter' });
 
+    const { courseId, ...formData } = await req.json();
+
+    // Validate input
+    if (
+      !formData.name ||
+      !formData.description ||
+      !formData.level ||
+      !formData.category ||
+      !formData.noofchapters
+    ) {
+      return NextResponse.json(
+        { error: 'Missing required fields.' },
+        { status: 400 }
+      );
+    }
+
+    // Subscription limit check
+    if (!hasPremiumAccess) {
+      const existingCourses = await db
+        .select()
+        .from(coursesTable)
+        .where(eq(coursesTable.userEmail, user?.primaryEmailAddress.emailAddress));
+
+      if (existingCourses.length >= 1) {
+        return NextResponse.json(
+          { error: 'Limit reached. Please subscribe.', redirect: true },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Gemini AI request
     const ai = new GoogleGenAI({
       apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
     });
-   
 
-    const model = 'gemini-1.5-flash'; // more reliable than "2.0-flash"
-    const config = {
-      responseMimeType: 'text/plain',
-    };
-
-    const contents = [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: prompt + JSON.stringify(formData),
-          },
-        ],
-      },
-    ];
-      if(!hasPreniumAccess){
-       const result=await db.select().from (coursesTable).where(eq(coursesTable.userEmail,user?.primaryEmailAddress.emailAddress)); 
-        if(result.length>=1){
-          return NextResponse.json({'resp':'limit reached'});
-        }
-      }
     const response = await ai.models.generateContent({
-      model,
-      config,
-      contents,
+      model: 'gemini-1.5-flash',
+      config: { responseMimeType: 'text/plain' },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt + JSON.stringify(formData) }],
+        },
+      ],
     });
-     
-    console.log(response.candidates[0].content.parts[0].text);
-    if(result.data.resp=='limit reached'){
-      toast.warning('please subsribe');
-      Router.push('/workspace/billing');
+
+    const rawText = response?.candidates[0]?.content?.parts[0]?.text;
+    const cleanText = rawText?.replace('```json', '').replace('```', '');
+
+    if (!cleanText) {
+      return NextResponse.json(
+        { error: 'Failed to get valid course data from AI' },
+        { status: 500 }
+      );
     }
-     const  RawResp=response?.candidates[0]?.content?.parts[0]?.text;
-     const RawJson=RawResp.replace('```json','').replace('```',''); // Remove newlines
-    const JSONResp=JSON.parse(RawJson);
 
-    const ImagePrompt=JSONResp.course?.bannerImagePrompt;
-    const bannerImageUrl= await GenerateImage(ImagePrompt);
+    const jsonResp = JSON.parse(cleanText);
+    const courseData = jsonResp.course;
 
-    // Optional: save to DB
-    
-    
-    const result = await db.insert(coursesTable).values({
-  cid: courseId,
-  name: formData.name,
-  description: formData.description,
-  category: formData.category,
-  level: formData.level,
-  includeVedio: formData.includeVideo, // Make sure schema uses the same key
-  noofChapters: JSONResp.course.noofChapters, // ✅ Ensure this is a number and present
-  bannerImagePrompt: JSONResp.course.bannerImagePrompt,
-  courseJson: JSONResp,
-  userEmail: user?.primaryEmailAddress?.emailAddress,
-  bannerImageUrl: bannerImageUrl, // Save the generated image URL
-});
+    // Generate image
+    const bannerImageUrl = await generateImage(courseData.bannerImagePrompt);
 
-    
+    // Save to DB
+    await db.insert(coursesTable).values({
+      cid: courseId,
+      name: courseData.name,
+      description: courseData.description,
+      category: courseData.category,
+      level: courseData.level,
+      includeVedio: courseData.includeVideo,
+      noofChapters: courseData.noofChapters,
+      bannerImagePrompt: courseData.bannerImagePrompt,
+      courseJson: jsonResp,
+      userEmail: user?.primaryEmailAddress?.emailAddress,
+      bannerImageUrl,
+    });
 
-    return NextResponse.json({courseId:courseId});
+    return NextResponse.json({ courseId });
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
@@ -120,6 +153,7 @@ export async function POST(req) {
     );
   }
 }
+
 
 const  GenerateImage=async(imagePrompt)=>{
   const BASE_URL='https://aigurulab.tech';
