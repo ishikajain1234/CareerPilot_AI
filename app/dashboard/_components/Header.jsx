@@ -35,7 +35,7 @@ const Header = () => {
         `}
           >
             <FaQuestionCircle />
-            Questions
+            Interview Questions
           </li>
         </Link>
         <Link href={"/dashboard/upgrade"}>
