@@ -4,7 +4,14 @@ import {useRouter} from "next/navigation";
 import {UserButton} from "@clerk/nextjs";
 import AddNewInterview from "./_components/AddNewInterview";
 import InerviewList from "./_components/InerviewList";
-import {Home, ClipboardList, BookOpen, FileCheck} from "lucide-react";
+// --- NEW: Added BrainCircuit icon ---
+import {
+  Home,
+  ClipboardList,
+  BookOpen,
+  FileCheck,
+  BrainCircuit,
+} from "lucide-react";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -12,9 +19,12 @@ const Dashboard = () => {
 
   const handleTabClick = (tab) => {
     if (tab === "course") {
-      router.push("/workspace"); // Redirects to the course page
+      router.push("/workspace");
     } else if (tab === "ats") {
-      router.push("/ats"); // *** NEW: Redirect to the ATS checker page ***
+      router.push("/ats");
+    } else if (tab === "dsa-prep") {
+      // --- NEW: Handle navigation to DSA Prep page ---
+      router.push("/dsa-prep");
     } else {
       setActiveTab(tab);
     }
@@ -24,7 +34,8 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-indigo-100 font-sans text-gray-800">
       <main className="p-8 container mx-auto">
         {activeTab === "home" && (
-          <section className="animate-fadeIn mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 items-stretch">
+          // --- UPDATED: Changed grid to better accommodate 4 cards on large screens ---
+          <section className="animate-fadeIn mt-10 grid grid-cols-1 md:grid-cols-2 gap-10 items-stretch">
             {/* Practice AI Mock Interview Card */}
             <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition duration-500 ease-in-out group flex flex-col">
               <div className="relative h-60 rounded-lg overflow-hidden mb-6">
@@ -75,11 +86,11 @@ const Dashboard = () => {
               </button>
             </div>
 
-            {/* Check ATS Score Card - UPDATED */}
+            {/* Check ATS Score Card */}
             <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition duration-500 ease-in-out group flex flex-col">
               <div className="relative h-60 rounded-lg overflow-hidden mb-6">
                 <img
-                  src="/ats.webp"
+                  src="/ats.png" // --- FIXED: Changed to .png extension ---
                   alt="ATS Score Check Illustration"
                   className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-500 ease-in-out"
                 />
@@ -93,10 +104,35 @@ const Dashboard = () => {
                 your chances of getting noticed by recruiters.
               </p>
               <button
-                onClick={() => handleTabClick("ats")} // *** UPDATED: Call handleTabClick with 'ats' ***
+                onClick={() => handleTabClick("ats")}
                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-bold py-3 rounded-lg shadow-lg transform hover:-translate-y-1 transition duration-300 ease-in-out text-lg tracking-wide"
               >
                 Analyze My Resume
+              </button>
+            </div>
+
+            {/* --- NEW: Smart DSA Prep Card --- */}
+            <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition duration-500 ease-in-out group flex flex-col">
+              <div className="relative h-60 rounded-lg overflow-hidden mb-6">
+                <img
+                  src="/dsa.png" // --- UPDATED: Changed to .png for consistency ---
+                  alt="DSA Prep Illustration"
+                  className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-500 ease-in-out"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg"></div>
+              </div>
+              <h3 className="text-3xl font-extrabold text-gray-900 mb-3 leading-tight flex items-center gap-x-2">
+                Smart DSA Prep <BrainCircuit className="text-orange-500" />
+              </h3>
+              <p className="text-gray-600 mb-6 text-lg flex-grow">
+                Get AI-generated problems, write code, and receive instant,
+                intelligent feedback to master data structures.
+              </p>
+              <button
+                onClick={() => handleTabClick("dsa-prep")}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-3 rounded-lg shadow-lg transform hover:-translate-y-1 transition duration-300 ease-in-out text-lg tracking-wide"
+              >
+                Start Prepping
               </button>
             </div>
           </section>
