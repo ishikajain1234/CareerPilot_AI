@@ -90,7 +90,7 @@ const Dashboard = () => {
             <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition duration-500 ease-in-out group flex flex-col">
               <div className="relative h-60 rounded-lg overflow-hidden mb-6">
                 <img
-                  src="/ats.png" // --- FIXED: Changed to .png extension ---
+                  src="/ats.jpeg" // --- FIXED: Changed to .png extension ---
                   alt="ATS Score Check Illustration"
                   className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-500 ease-in-out"
                 />
@@ -115,7 +115,7 @@ const Dashboard = () => {
             <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition duration-500 ease-in-out group flex flex-col">
               <div className="relative h-60 rounded-lg overflow-hidden mb-6">
                 <img
-                  src="/dsa.png" // --- UPDATED: Changed to .png for consistency ---
+                  src="/dsa.avif" // --- UPDATED: Changed to .png for consistency ---
                   alt="DSA Prep Illustration"
                   className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-500 ease-in-out"
                 />
