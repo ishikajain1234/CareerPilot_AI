@@ -263,9 +263,15 @@ const DSAPrepPage = () => {
                       </p>
                       <pre className="bg-transparent p-0 m-0">
                         <code className="text-sm text-gray-800">
-                          Input: {ex.input}
+                          Input:{" "}
+                          {typeof ex.input === "object"
+                            ? JSON.stringify(ex.input, null, 2)
+                            : ex.input}
                           <br />
-                          Output: {ex.output}
+                          Output:{" "}
+                          {typeof ex.output === "object"
+                            ? JSON.stringify(ex.output, null, 2)
+                            : ex.output}
                         </code>
                       </pre>
                     </div>

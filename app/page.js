@@ -17,11 +17,9 @@ export default function Home() {
             AI. Practice confidently, get instant feedback, and sharpen your
             skills — all in one place.
           </p>
-          <Link href="/dashboard">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg transition-all duration-200 rounded-full shadow-md">
-              Get Started
-            </Button>
-          </Link>
+          <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg transition-all duration-200 rounded-full shadow-md">
+            <Link href="/dashboard">Get Started</Link>
+          </Button>
         </div>
 
         {/* Right - Image */}
