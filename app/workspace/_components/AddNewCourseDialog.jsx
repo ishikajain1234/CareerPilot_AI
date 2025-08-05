@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState } from "react";
 import {
   Dialog,
@@ -22,56 +22,70 @@ import { Loader2Icon, Sparkle } from "lucide-react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
-import { toast  } from 'sonner';
-
+import { toast } from "sonner";
 
 const AddNewCourseDialog = ({ children }) => {
-  const [loading ,setLoading]=useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const router=useRouter();
-  const [formData,setformData]=useState({
-    name:'',
-    description:'',
-    includeVedio:false,
-    noofchapters:0,
-    category:'',
-    level:''
-
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    includeVideo: false, // ✅ correct spelling
+    noofChapters: 0, // ✅ correct casing and type
+    category: "",
+    level: "",
   });
-  const onHandleInputChange=(field,value)=>{
-    setformData(prev=>({
+
+  const onHandleInputChange = (field, value) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]:value
-    }))
-    console.log(formData)
-  }
+      [field]: value,
+    }));
+  };
 
   const onGenerate = async () => {
-  console.log(formData);
-  const courseId = uuidv4();
+    const courseId = uuidv4();
 
-  try {
-    setLoading(true);
-    const result = await axios.post('/api/generate-course-layout', {
-      ...formData,
-      courseId: courseId,
-    });
+    try {
+      setLoading(true);
 
-    if (result.data.redirect) {
-      toast.warning('Limit reached. Please subscribe.');
-      router.push('/workspace/billing');
-      return;
+      const preparedData = {
+        ...formData,
+        noofChapters: Number(formData.noofChapters), // ✅ ensures number
+        courseId,
+      };
+
+      // Optional: Basic check before request
+      if (
+        !preparedData.name ||
+        !preparedData.description ||
+        !preparedData.level ||
+        !preparedData.category ||
+        isNaN(preparedData.noofChapters) ||
+        preparedData.noofChapters < 1
+      ) {
+        toast.error("Please fill all required fields correctly.");
+        setLoading(false);
+        return;
+      }
+
+      const result = await axios.post("/api/generate-course-layout", preparedData);
+
+      if (result.data.redirect) {
+        toast.warning("Limit reached. Please subscribe.");
+        router.push("/workspace/billing");
+        return;
+      }
+
+      router.push("/workspace/edit-course/" + result.data?.courseId);
+    } catch (e) {
+      console.error("Error generating course layout:", e);
+      toast.error("Something went wrong while generating the course.");
+    } finally {
+      setLoading(false);
     }
-
-    console.log(result.data);
-    router.push('/workspace/edit-course/' + result.data?.courseId);
-  } catch (e) {
-    console.error('Error generating course layout:', e);
-    toast.error('Something went wrong while generating the course.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <Dialog>
@@ -84,27 +98,24 @@ const AddNewCourseDialog = ({ children }) => {
           <DialogDescription asChild>
             <div className="flex flex-col gap-5 mt-4 text-sm text-gray-600">
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="courseName"
-                  className="font-medium text-gray-700"
-                >
+                <label htmlFor="courseName" className="font-medium text-gray-700">
                   Course Name
                 </label>
-                <Input id="courseName" placeholder="e.g. Mastering React" onChange={(event)=> onHandleInputChange('name',event?.target.value)}/>
+                <Input
+                  id="courseName"
+                  placeholder="e.g. Mastering React"
+                  onChange={(e) => onHandleInputChange("name", e.target.value)}
+                />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="courseDescription"
-                  className="font-medium text-gray-700"
-                >
-                  Course Description{" "}
-                  <span className="text-gray-400">(Optional)</span>
+                <label htmlFor="courseDescription" className="font-medium text-gray-700">
+                  Course Description
                 </label>
                 <Input
                   id="courseDescription"
                   placeholder="A short summary of the course"
-                   onChange={(event)=> onHandleInputChange('description',event?.target.value)}
+                  onChange={(e) => onHandleInputChange("description", e.target.value)}
                 />
               </div>
 
@@ -117,22 +128,25 @@ const AddNewCourseDialog = ({ children }) => {
                   placeholder="e.g. 10"
                   type="number"
                   min="1"
-                  onChange={(event)=> onHandleInputChange('noofchapters',event?.target.value)}
+                  onChange={(e) =>
+                    onHandleInputChange("noofChapters", Number(e.target.value))
+                  }
                 />
               </div>
 
               <div className="flex items-center justify-between">
-                <label
-                  htmlFor="includeVideo"
-                  className="font-medium text-gray-700"
-                >
+                <label htmlFor="includeVideo" className="font-medium text-gray-700">
                   Include Video
                 </label>
-                <Switch onCheckedChange={()=>onHandleInputChange('includeVedio',!formData?.includeVedio)}/>
+                <Switch
+                  checked={formData.includeVideo}
+                  onCheckedChange={(val) => onHandleInputChange("includeVideo", val)}
+                />
               </div>
+
               <div>
-                <label className='mb-1'>Difficulty level</label>
-                <Select className='mb-2'  onValueChange={(value)=> onHandleInputChange('level',value)}>
+                <label className="mb-1">Difficulty level</label>
+                <Select onValueChange={(value) => onHandleInputChange("level", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Difficulty Level" />
                   </SelectTrigger>
@@ -143,18 +157,23 @@ const AddNewCourseDialog = ({ children }) => {
                   </SelectContent>
                 </Select>
               </div>
-                <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="courseName"
-                  className="font-medium text-gray-700"
-                >
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="courseCategory" className="font-medium text-gray-700">
                   Category
                 </label>
-                <Input id="courseName" placeholder="Category" onChange={(event)=> onHandleInputChange('category',event?.target.value)}/>
+                <Input
+                  id="courseCategory"
+                  placeholder="e.g. Web Development"
+                  onChange={(e) => onHandleInputChange("category", e.target.value)}
+                />
               </div>
+
               <div>
-                <Button className={'w-full'} onClick={onGenerate} disabled={loading}>
-                  {loading?<Loader2Icon className="animate-spin"/>: <Sparkle/>} Generate Course</Button>
+                <Button className="w-full" onClick={onGenerate} disabled={loading}>
+                  {loading ? <Loader2Icon className="animate-spin" /> : <Sparkle />}{" "}
+                  Generate Course
+                </Button>
               </div>
             </div>
           </DialogDescription>

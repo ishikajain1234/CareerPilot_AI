@@ -1,20 +1,20 @@
 import { db } from '@/utils/db';
 import { coursesTable } from '@/utils/schema';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
-import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { v4 as uuid4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
-const prompt = `Generate Learning Course based on the following details. 
-Make sure to add: 
-- Course Name 
-- Description 
-- Course Banner Image Prompt (Create a modern, flat-style 2D digital illustration representing the topic. Use vibrant colors, 3D format, symbolic elements, etc.) 
+// Gemini prompt
+const prompt = `Generate a learning course based on the following details.
+Make sure to include:
+- Course Name
+- Description
+- Course Banner Image Prompt (Create a modern, flat-style 2D digital illustration representing the topic. Use vibrant colors, 3D format, symbolic elements, etc.)
 - Chapters with chapter name, duration, and topics inside each chapter.
 
-Output should be in this JSON format:
+Output format:
 
 {
   "course": {
@@ -39,47 +39,52 @@ User Input:
 `;
 
 const generateImage = async (imagePrompt) => {
-  const BASE_URL = 'https://aigurulab.tech';
-  const response = await axios.post(
-    `${BASE_URL}/api/generate-image`,
-    {
-      width: 1024,
-      height: 1024,
-      input: imagePrompt,
-      model: 'flux',
-      aspectRatio: '16:9',
-    },
-    {
-      headers: {
-        'x-api-key': process.env.AI_GURU_LAB_API,
-        'Content-Type': 'application/json',
+  try {
+    const BASE_URL = 'https://aigurulab.tech';
+    const response = await axios.post(
+      `${BASE_URL}/api/generate-image`,
+      {
+        width: 1024,
+        height: 1024,
+        input: imagePrompt,
+        model: 'flux',
+        aspectRatio: '16:9',
       },
-    }
-  );
+      {
+        headers: {
+          'x-api-key': process.env.AI_GURU_LAB_API,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  return response.data.image;
+    return response.data.image;
+  } catch (error) {
+    console.error('Image generation failed:', error);
+    return null; // fallback or handle gracefully
+  }
 };
 
 export async function POST(req) {
   try {
     const user = await currentUser();
-    const { courseId, ...formData } = await req.json();
+    const { courseId = uuidv4(), ...formData } = await req.json();
 
-    // Validate input
+    // Validation
     if (
       !formData.name ||
       !formData.description ||
       !formData.level ||
       !formData.category ||
-      !formData.noofchapters
+      typeof formData.noofChapters !== 'number'
     ) {
       return NextResponse.json(
-        { error: 'Missing required fields.' },
+        { error: 'Missing or invalid required fields.' },
         { status: 400 }
       );
     }
 
-    // Gemini AI request
+    // Gemini AI call
     const ai = new GoogleGenAI({
       apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
     });
@@ -95,35 +100,50 @@ export async function POST(req) {
       ],
     });
 
-    const rawText = response?.candidates[0]?.content?.parts[0]?.text;
-    const cleanText = rawText?.replace('```json', '').replace('```', '');
-
-    if (!cleanText) {
+    const rawText = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
       return NextResponse.json(
-        { error: 'Failed to get valid course data from AI' },
+        { error: 'No response from Gemini AI.' },
         { status: 500 }
       );
     }
 
-    const jsonResp = JSON.parse(cleanText);
-    const courseData = jsonResp.course;
+    const cleanText = rawText.replace(/```json|```/g, '');
+    let jsonResp;
+    try {
+      jsonResp = JSON.parse(cleanText);
+    } catch (err) {
+      console.error('Invalid JSON from Gemini:', cleanText);
+      return NextResponse.json(
+        { error: 'Gemini returned malformed JSON.' },
+        { status: 500 }
+      );
+    }
 
-    // Generate image
+    const courseData = jsonResp.course;
+    if (!courseData) {
+      return NextResponse.json(
+        { error: 'Gemini response missing course data.' },
+        { status: 500 }
+      );
+    }
+
+    // Image generation
     const bannerImageUrl = await generateImage(courseData.bannerImagePrompt);
 
-    // Save to DB
+    // Insert into DB
     await db.insert(coursesTable).values({
       cid: courseId,
       name: courseData.name,
       description: courseData.description,
       category: courseData.category,
       level: courseData.level,
-      includeVedio: courseData.includeVideo,
+      includeVideo: courseData.includeVideo,
       noofChapters: courseData.noofChapters,
       bannerImagePrompt: courseData.bannerImagePrompt,
+      bannerImageUrl: bannerImageUrl,
       courseJson: jsonResp,
-      userEmail: user?.primaryEmailAddress?.emailAddress,
-      bannerImageUrl,
+      userEmail: user?.primaryEmailAddress?.emailAddress || 'unknown',
     });
 
     return NextResponse.json({ courseId });
