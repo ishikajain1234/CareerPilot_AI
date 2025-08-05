@@ -1,20 +1,18 @@
-import { db } from '@/utils/db';
-import { coursesTable } from '@/utils/schema';
-import { currentUser } from '@clerk/nextjs/server';
-import { GoogleGenAI } from '@google/genai';
-import axios from 'axios';
-import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
+import {db} from "@/utils/db";
+import {coursesTable} from "@/utils/schema";
+import {currentUser} from "@clerk/nextjs/server";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+import axios from "axios";
+import {NextResponse} from "next/server";
 
-// Gemini prompt
-const prompt = `Generate a learning course based on the following details.
-Make sure to include:
-- Course Name
-- Description
-- Course Banner Image Prompt (Create a modern, flat-style 2D digital illustration representing the topic. Use vibrant colors, 3D format, symbolic elements, etc.)
+const prompt = `Generate Learning Course based on the following details. 
+Make sure to add: 
+- Course Name 
+- Description 
+- Course Banner Image Prompt (Create a modern, flat-style 2D digital illustration representing the topic. Use vibrant colors, 3D format, symbolic elements, etc.) 
 - Chapters with chapter name, duration, and topics inside each chapter.
 
-Output format:
+Output should be in this JSON format:
 
 {
   "course": {
@@ -22,8 +20,8 @@ Output format:
     "description": "string",
     "category": "string",
     "level": "string",
-    "includeVideo": "boolean",
-    "noofChapters": "number",
+    "includeVideo": boolean,
+    "noofChapters": number,
     "bannerImagePrompt": "string",
     "chapters": [
       {
@@ -39,99 +37,101 @@ User Input:
 `;
 
 const generateImage = async (imagePrompt) => {
-  try {
-    const BASE_URL = 'https://aigurulab.tech';
-    const response = await axios.post(
-      `${BASE_URL}/api/generate-image`,
-      {
-        width: 1024,
-        height: 1024,
-        input: imagePrompt,
-        model: 'flux',
-        aspectRatio: '16:9',
+  const BASE_URL = "https://aigurulab.tech";
+  const response = await axios.post(
+    `${BASE_URL}/api/generate-image`,
+    {
+      width: 1024,
+      height: 1024,
+      input: imagePrompt,
+      model: "flux",
+      aspectRatio: "16:9",
+    },
+    {
+      headers: {
+        "x-api-key": process.env.AI_GURU_LAB_API,
+        "Content-Type": "application/json",
       },
-      {
-        headers: {
-          'x-api-key': process.env.AI_GURU_LAB_API,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    return response.data.image;
-  } catch (error) {
-    console.error('Image generation failed:', error);
-    return null; // fallback or handle gracefully
-  }
+    }
+  );
+  return response.data.image;
 };
 
 export async function POST(req) {
   try {
     const user = await currentUser();
-    const { courseId = uuidv4(), ...formData } = await req.json();
+    const {courseId, ...formData} = await req.json();
 
-    // Validation
     if (
       !formData.name ||
-      !formData.description ||
       !formData.level ||
       !formData.category ||
-      typeof formData.noofChapters !== 'number'
+      !formData.noofchapters ||
+      formData.noofchapters <= 0
     ) {
       return NextResponse.json(
-        { error: 'Missing or invalid required fields.' },
-        { status: 400 }
+        {error: "Missing or invalid required fields."},
+        {status: 400}
       );
     }
 
-    // Gemini AI call
-    const ai = new GoogleGenAI({
-      apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-    });
+    // --- START: FALLBACK LOGIC ---
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      config: { responseMimeType: 'text/plain' },
-      contents: [
+    // 1. Securely load your API keys into an array.
+    // The .filter(Boolean) removes any keys that are not set.
+    const apiKeys = [
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY_2,
+    ].filter(Boolean);
+
+    if (apiKeys.length === 0) {
+      throw new Error("No Gemini API keys found in environment variables.");
+    }
+
+    let jsonResp = null;
+
+    // 2. Loop through the keys until one succeeds.
+    for (const key of apiKeys) {
+      try {
+        console.log("Attempting to use an API key...");
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        });
+
+        const fullPrompt = prompt + JSON.stringify(formData);
+        const result = await model.generateContent(fullPrompt);
+        const response = result.response;
+
+        // If the call is successful, parse the response and break the loop.
+        jsonResp = JSON.parse(response.text());
+        console.log("API key successful!");
+        break;
+      } catch (error) {
+        console.warn(
+          `API key ending in '...${key.slice(-4)}' failed. Trying next key...`
+        );
+      }
+    }
+
+    // 3. If all keys failed, jsonResp will still be null. Throw an error.
+    if (!jsonResp || !jsonResp.course) {
+      return NextResponse.json(
         {
-          role: 'user',
-          parts: [{ text: prompt + JSON.stringify(formData) }],
+          error:
+            "Failed to get valid course data from AI after trying all keys.",
         },
-      ],
-    });
-
-    const rawText = response?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return NextResponse.json(
-        { error: 'No response from Gemini AI.' },
-        { status: 500 }
+        {status: 500}
       );
     }
-
-    const cleanText = rawText.replace(/```json|```/g, '');
-    let jsonResp;
-    try {
-      jsonResp = JSON.parse(cleanText);
-    } catch (err) {
-      console.error('Invalid JSON from Gemini:', cleanText);
-      return NextResponse.json(
-        { error: 'Gemini returned malformed JSON.' },
-        { status: 500 }
-      );
-    }
+    // --- END: FALLBACK LOGIC ---
 
     const courseData = jsonResp.course;
-    if (!courseData) {
-      return NextResponse.json(
-        { error: 'Gemini response missing course data.' },
-        { status: 500 }
-      );
-    }
-
-    // Image generation
     const bannerImageUrl = await generateImage(courseData.bannerImagePrompt);
 
-    // Insert into DB
     await db.insert(coursesTable).values({
       cid: courseId,
       name: courseData.name,
@@ -141,17 +141,17 @@ export async function POST(req) {
       includeVideo: courseData.includeVideo,
       noofChapters: courseData.noofChapters,
       bannerImagePrompt: courseData.bannerImagePrompt,
-      bannerImageUrl: bannerImageUrl,
       courseJson: jsonResp,
-      userEmail: user?.primaryEmailAddress?.emailAddress || 'unknown',
+      userEmail: user?.primaryEmailAddress?.emailAddress,
+      bannerImageUrl,
     });
 
-    return NextResponse.json({ courseId });
+    return NextResponse.json({courseId});
   } catch (error) {
-    console.error('API Error:', error);
+    console.error("API Error:", error);
     return NextResponse.json(
-      { error: 'Failed to generate course layout. Try again later.' },
-      { status: 500 }
+      {error: "Failed to generate course layout. Please try again later."},
+      {status: 500}
     );
   }
 }
