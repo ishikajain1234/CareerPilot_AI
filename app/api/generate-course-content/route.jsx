@@ -34,7 +34,7 @@ export async function POST(req) {
     const promises = courseJson.chapters.map(async (chapter) => {
       try {
         const config = { responseMimeType: 'text/plain' };
-        const model = 'gemini-1.5-flash'; // or 'gemini-2.0' if needed
+        const model = 'gemini-2.5-flash'; // or 'gemini-2.0' if needed
 
         const contents = [
           {
