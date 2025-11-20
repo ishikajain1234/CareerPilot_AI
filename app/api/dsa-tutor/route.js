@@ -33,7 +33,7 @@ async function generateContentWithFallback(prompt) {
     try {
       console.log(`Attempting API call with key #${i + 1}...`);
       const genAI = new GoogleGenerativeAI(key);
-      const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+      const model = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
       const result = await model.generateContent(prompt);
       console.log(`API call with key #${i + 1} was successful.`);
       return result; // If successful, return the result immediately.
